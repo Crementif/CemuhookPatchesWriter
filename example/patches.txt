@@ -1,0 +1,65 @@
+[PatchV1]
+moduleMatches=0x039993
+
+# There's a few methods of defining/changing constants...
+0x3011C0C0 = .byte 2 ; There's the classic method, which works great to change addresses in the game's memory.
+
+# The rest of the allocation will be done in the code cave, but that's easy with the new "auto" value, which manages all the addresses.
+codeCaveSize = 0x44
+
+_constInt9.0 = 0x0000000
+0x0000000 = .int(9.000000)
+
+_constFloat2.5 = 0x0000004
+0x0000004 = .float(2.450000)
+
+_preset_thisCemuExpression = 0x0000008
+0x0000008 = .float($thisCemuExpression)
+
+_preset_thisCemuExpression2 = 0x000000c
+0x000000c = .byte(5-$thisCemuExpression*3/3+1)
+# These symbols above are all interpreted ones, which are always stored right under the code cave size line. All of the other allocations will be moved
+
+_value2 = 0x0000010
+0x0000010 = .int(2); This new, shorthand method also creates a symbol for situations where the game code and code cave both need to load the constant value.
+
+_value1 = 0x0000014
+0x0000014 = .float(3) ; This new, but not shorthand method. This works due to the code considering the .float also being a PPC instruction. Not really better then other methods, but it works! Might want to use it to make your code less readable?
+
+# But, there's the new method that actually abstracts all of this! In the code cave below, you'll see this in action. It'll see the float/int/byte being loaded by a load instruction and interpret this. This only works in code caves, naturally, but it's really handy.
+
+_SomeDirectLoadingOfConstantTests = 0x0000018
+
+# Direct int load
+0000018 = lis r12, _constInt9.0@ha
+000001c = lwz r12, _constInt9.0@l(r12); If it's a load instruction into a register, it'll use the same register to load the first half of the address into that address.
+
+# Direct float load
+0000020 = lis r5, _constFloat2.5@ha
+0000024 = lfd f4, _constFloat2.5@l(r5); Since it can't know what register should be used to load the first half of the address, you'll need to give it a hint in the form of the @l(rX).
+
+# Direct expression load
+0000028 = lis r8, _preset_thisCemuExpression@ha
+000002c = lfd f4, _preset_thisCemuExpression@l(r8); This also works with Cemu expressions, where it'll try to also give it an unique name.
+
+# Direct complex expression load
+0000030 = lis r4, _preset_thisCemuExpression2@ha
+0000034 = lbz r4, _preset_thisCemuExpression2@l(r4); And here's a test with a more complicated expression. It'll also add a 2 etc. in front of it to make it unique.
+0x0000038 = blr
+
+_someCode = 0x000003c
+0x000003c = mov foo, bar ; Some extra stuff
+0x0000040 = blr
+
+0x939393 = bla _someCode
+
+[PatchV2]
+moduleMatches=0x0299393
+
+codeCaveSize=0x993
+
+_otherCodeCave = 0x0000000
+0x0000000 = mov foo, bar # Crazy comment here too!
+0x0000004 = blr
+
+0x939393 = bla _otherCodeCave

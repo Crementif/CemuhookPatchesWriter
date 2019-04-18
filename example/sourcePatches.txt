@@ -1,0 +1,49 @@
+[PatchV1]
+moduleMatches=0x039993
+
+# There's a few methods of defining/changing constants...
+0x3011C0C0 = .byte 2 ; There's the classic method, which works great to change addresses in the game's memory.
+
+# The rest of the allocation will be done in the code cave, but that's easy with the new "auto" value, which manages all the addresses.
+codeCaveSize=auto
+
+# These symbols above are all interpreted ones, which are always stored right under the code cave size line. All of the other allocations will be moved
+
+_value2 = .int(2) ; This new, shorthand method also creates a symbol for situations where the game code and code cave both need to load the constant value.
+
+value1:
+.float(3) ; This new, but not shorthand method. This works due to the code considering the .float also being a PPC instruction. Not really better then other methods, but it works! Might want to use it to make your code less readable?
+
+# But, there's the new method that actually abstracts all of this! In the code cave below, you'll see this in action. It'll see the float/int/byte being loaded by a load instruction and interpret this. This only works in code caves, naturally, but it's really handy.
+
+SomeDirectLoadingOfConstantTests:
+
+# Direct int load
+lwz r12, .int(9) ; If it's a load instruction into a register, it'll use the same register to load the first half of the address into that address.
+
+# Direct float load
+lfd f4, .float(2.45)@l(r5) ; Since it can't know what register should be used to load the first half of the address, you'll need to give it a hint in the form of the @l(rX).
+
+# Direct expression load
+lfd f4, .float($thisCemuExpression)@l(r8) ; This also works with Cemu expressions, where it'll try to also give it an unique name.
+
+# Direct complex expression load
+lbz r4, .byte(5-$thisCemuExpression*3/3+1) ; And here's a test with a more complicated expression. It'll also add a 2 etc. in front of it to make it unique.
+blr
+
+someCode:
+mov foo, bar ; Some extra stuff
+blr
+
+0x939393 = bla _someCode
+
+[PatchV2]
+moduleMatches=0x0299393
+
+codeCaveSize=0x993
+
+otherCodeCave:
+mov foo, bar # Crazy comment here too!
+blr
+
+0x939393 = bla _otherCodeCave
