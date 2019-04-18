@@ -14,7 +14,7 @@ It doesn't change any existing behavior and using these added features should be
 **Latest version for Windows can be downloaded in [Releases](https://github.com/Crementif/CemuhookPatchesWriter/releases).**
 
 #### What does it add?
-A good example of all of the different things/behavior can be seen in the [examples](https://github.com/Crementif/CemuhookPatchesWriter/blob/master/examples/sourcePatches.txt) folder!
+A good example of all of the different things/behavior can be seen in the [example](https://github.com/Crementif/CemuhookPatchesWriter/blob/master/example/sourcePatches.txt) folder!
 
 ```ini
 codeCaveSize=auto ; Handles the size on it's own.
