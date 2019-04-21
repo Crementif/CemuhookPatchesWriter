@@ -59,6 +59,7 @@
 
 #include "notepad.h"
 #include "ui_notepad.h"
+#include "highlighter.h"
 
 Notepad::Notepad(QWidget *parent) :
     QMainWindow(parent),
@@ -84,6 +85,13 @@ Notepad::Notepad(QWidget *parent) :
     ui->actionCopy->setEnabled(false);
     ui->actionPaste->setEnabled(false);
 #endif
+    QFont font;
+    font.setFamily("Courier");
+    font.setFixedPitch(true);
+    font.setPointSize(10);
+    ui->textEdit->setFont(font);
+
+    highlighter = new Highlighter(ui->textEdit->document());
 }
 
 Notepad::~Notepad()
@@ -108,7 +116,7 @@ void Notepad::compileSourceOnTextChanged()
 
     bool inCodeCaveSection = false;
 
-    const QStringList interpretableLoadInstructions = {"lfs", "lfd", "lis", "lwz", "lbz"};
+    const QStringList interpretableLoadStoreInstructions = {"lfs", "lfd", "lis", "lwz", "lbz", "stfs"};
     const QStringList cemuhookShorthandConstants = {".int", ".float", ".byte", ".string"/*Didn't bother fully implementing .string, but it should work-ish.*/};
 
     if (!sourcePatchesText.isEmpty()) {
@@ -161,7 +169,7 @@ void Notepad::compileSourceOnTextChanged()
                 if (parseLine.trimmed().endsWith(":") && !parseLine.contains("=")) {
                     QString symbolName(parseLine.trimmed());
                     symbolName.chop(1);
-                    patchLines.append("_"+symbolName+" = 0x%1");
+                    patchLines.append(symbolName+" = 0x%1");
                     patchAddresses.append(addrIndex);
                     inCodeCaveSection = true;
                 }
@@ -172,10 +180,10 @@ void Notepad::compileSourceOnTextChanged()
                     patchAddresses.append(addrIndex);
                     addrIndex+=4;
                 }
-                else if (!hasCemuhookShorthandConstant.isEmpty() && interpretableLoadInstructions.contains(parseLine.split(" ")[0]) && interpretedConstantsInsertLine != -1) {
+                else if (!hasCemuhookShorthandConstant.isEmpty() && interpretableLoadStoreInstructions.contains(parseLine.split(" ")[0]) && interpretedConstantsInsertLine != -1) {
                     QString valueArg=parseLine.split(",")[1].trimmed();
                     QString registerArg=parseLine.split(" ")[1].split(",")[0];
-                    if (interpretableLoadInstructions.contains(valueArg)) QMessageBox::warning(this, "Compile error :/", "Expected a Cemuhook constant to be the second argument in this load instruction.");
+                    if (interpretableLoadStoreInstructions.contains(valueArg)) QMessageBox::warning(this, "Compile error :/", "Expected a Cemuhook constant to be the second argument in this load instruction.");
                     QString strValue = QString(valueArg).split(hasCemuhookShorthandConstant)[1].remove("(").split(")")[0];
                     patchInterpretedLines.append("");
 
@@ -191,9 +199,9 @@ void Notepad::compileSourceOnTextChanged()
                         patchInterpretedLines.append(QString("%1 = 0x%2").arg(symbolName).arg(interpretedAddrIndex, 7, 16, QChar('0')));
                         patchInterpretedLines.append(QString("0x%1 = %2(%3)").arg(interpretedAddrIndex, 7, 16, QChar('0')).arg(hasCemuhookShorthandConstant).arg(value, 7, 'f'));
                         interpretedAddrIndex+=4;
-                        patchLines.append("%1 = lis "+QString(AddrRegisterHint)+", "+symbolName+"@ha");
+                        patchLines.append("0x%1 = lis "+QString(AddrRegisterHint)+", "+symbolName+"@ha");
                         patchAddresses.append(addrIndex);
-                        patchLines.append("%1 = "+parseLine.split(" ")[0]+" "+registerArg+", "+symbolName+"@l("+AddrRegisterHint+")");
+                        patchLines.append("0x%1 = "+parseLine.split(" ")[0]+" "+registerArg+", "+symbolName+"@l("+AddrRegisterHint+")");
                         patchAddresses.append(addrIndex+4);
                         addrIndex+=8;
                     }
@@ -208,9 +216,9 @@ void Notepad::compileSourceOnTextChanged()
                         patchInterpretedLines.append(QString("%1 = 0x%2").arg(symbolName).arg(interpretedAddrIndex, 7, 16, QChar('0')));
                         patchInterpretedLines.append(QString("0x%1 = %2(%3)").arg(interpretedAddrIndex, 7, 16, QChar('0')).arg(hasCemuhookShorthandConstant).arg(strValue));
                         interpretedAddrIndex+=4;
-                        patchLines.append("%1 = lis "+AddrRegisterHint+", "+symbolName+"@ha");
+                        patchLines.append("0x%1 = lis "+AddrRegisterHint+", "+symbolName+"@ha");
                         patchAddresses.append(addrIndex);
-                        patchLines.append("%1 = "+parseLine.split(" ")[0]+" "+registerArg+", "+symbolName+"@l("+AddrRegisterHint+")");
+                        patchLines.append("0x%1 = "+parseLine.split(" ")[0]+" "+registerArg+", "+symbolName+"@l("+AddrRegisterHint+")");
                         patchAddresses.append(addrIndex+4);
                         addrIndex+=8;
                     }
@@ -229,10 +237,14 @@ void Notepad::compileSourceOnTextChanged()
             }
 
             // Finish and append last patch.
-            if (replaceCaveSizeLine != -1) patchLines.replace(replaceCaveSizeLine, "codeCaveSize = 0x"+QString::number(addrIndex, 16));
+            if (replaceCaveSizeLine != -1) patchLines.replace(replaceCaveSizeLine, "codeCaveSize = 0x"+QString::number(addrIndex+interpretedAddrIndex, 16));
             for (int j=0; j<patchLines.size(); j++) {
+                if (j==interpretedConstantsInsertLine) {
+                    compiledPatchesText+=patchInterpretedLines.join("\n");
+                    patchInterpretedLines.clear();
+                }
                 if (patchAddresses[j] == -1) compiledPatchesText+=patchLines[j]+"\n";
-                else compiledPatchesText += patchLines[j].arg(patchAddresses[j], 7, 16, QChar('0')) + "\n";
+                else compiledPatchesText += patchLines[j].arg(patchAddresses[j]+interpretedAddrIndex, 7, 16, QChar('0')) + "\n";
             }
 
             // Set text to display compiled output
@@ -379,4 +391,9 @@ void Notepad::on_actionOnly_show_first_patch_toggled(bool arg1)
 {
     onlyShowFirstPatch = arg1;
     compileSourceOnTextChanged();
+}
+
+void Notepad::on_textEdit_selectionChanged()
+{
+
 }

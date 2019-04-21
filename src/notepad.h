@@ -54,6 +54,7 @@
 //! [all]
 //! [1]
 #include <QMainWindow>
+#include "highlighter.h"
 //! [1]
 
 //! [2]
@@ -112,12 +113,16 @@ private slots:
 
     void on_actionOnly_show_first_patch_toggled(bool arg1);
 
+    void on_textEdit_selectionChanged();
+
 private:
     Ui::Notepad *ui;
     QString buildFile;
     QString sourceFile;
     bool removeCommentsFromSource = false;
     bool onlyShowFirstPatch = false;
+
+    Highlighter *highlighter;
 //! [6]
 };
 //! [all]

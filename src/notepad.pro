@@ -5,10 +5,12 @@ qtHaveModule(printsupport): QT += printsupport
 requires(qtConfig(fontdialog))
 
 SOURCES += \
+    highlighter.cpp \
     main.cpp\
     notepad.cpp
 
-HEADERS += notepad.h
+HEADERS += notepad.h \
+    highlighter.h
 
 FORMS += notepad.ui
 
