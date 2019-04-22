@@ -31,21 +31,12 @@
      <enum>QLayout::SetDefaultConstraint</enum>
     </property>
     <item>
-     <widget class="QTextEdit" name="textEdit">
+     <widget class="QPlainTextEdit" name="plainTextEdit">
       <property name="sizePolicy">
        <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
         <horstretch>0</horstretch>
         <verstretch>0</verstretch>
        </sizepolicy>
-      </property>
-      <property name="autoFormatting">
-       <set>QTextEdit::AutoNone</set>
-      </property>
-      <property name="lineWrapMode">
-       <enum>QTextEdit::NoWrap</enum>
-      </property>
-      <property name="acceptRichText">
-       <bool>false</bool>
       </property>
      </widget>
     </item>
@@ -329,6 +320,11 @@
    </property>
    <property name="text">
     <string>Only show output of first patch</string>
+   </property>
+  </action>
+  <action name="actionRecent_files">
+   <property name="text">
+    <string>Recent files</string>
    </property>
   </action>
  </widget>

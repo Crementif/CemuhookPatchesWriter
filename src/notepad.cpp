@@ -90,8 +90,48 @@ Notepad::Notepad(QWidget *parent) :
     font.setFixedPitch(true);
     font.setPointSize(10);
     ui->textEdit->setFont(font);
+    ui->textBuildView->setFont(font);
 
     highlighter = new Highlighter(ui->textEdit->document());
+    highlighter = new Highlighter(ui->textBuildView->document());
+
+    // Load settings
+    QFile settingsFile(QCoreApplication::applicationDirPath()+"/userdata.ini");
+    if (!settingsFile.open(QIODevice::ReadOnly | QFile::Text)) { // The write mode will create the file for us.
+        QMessageBox::warning(this, "Info", "Couldn't create or load userdata.ini: " + settingsFile.errorString());
+        return;
+    }
+    QTextStream inSrc(&settingsFile);
+    QString textSrc = inSrc.readAll();
+    QStringList settingsLines = textSrc.split("\n");
+    foreach (const QString &setting, settingsLines) {
+        if (setting.startsWith("lastFile = ")) Notepad::openFile(setting.split("lastFile = ")[1]);
+    }
+    settingsFile.close();
+}
+
+void Notepad::changeSetting(QString settingName, QString settingValue) {
+    QFile settingsFile(QCoreApplication::applicationDirPath()+"/userdata.ini");
+    if (!settingsFile.open(QIODevice::ReadWrite | QFile::Text)) {
+        QMessageBox::warning(this, "Info", "Couldn't create or load userdata.ini: " + settingsFile.errorString());
+        return;
+    }
+    QTextStream inSrc(&settingsFile);
+    QString textSrc = inSrc.readAll();
+    QStringList newSettingsLines;
+    QStringList settingsLines = textSrc.split("\n");
+    bool settingChanged = false;
+    foreach (const QString &setting, settingsLines) {
+        if (setting.startsWith(settingName+" = ")) {
+            newSettingsLines += settingName+" = "+settingValue;
+            settingChanged = true;
+        }
+        else newSettingsLines += setting;
+    }
+    if (!settingChanged) newSettingsLines += settingName+" = "+settingValue;
+    QTextStream out(&settingsFile);
+    out << newSettingsLines.join("\n");
+    settingsFile.close();
 }
 
 Notepad::~Notepad()
@@ -269,10 +309,13 @@ void Notepad::newDocument()
     ui->textEdit->setText(QString());
 }
 
-void Notepad::open()
-{
+void Notepad::open() {
+    Notepad::openFile(QFileDialog::getOpenFileName(this, "Open the patches.txt file", "", tr("patches.txt;;Any files(*.*)")));
+}
+
+void Notepad::openFile(QString buildFile) {
+    Notepad::buildFile = buildFile;
     // Read patches.txt file
-    buildFile = QFileDialog::getOpenFileName(this, "Open the patches.txt file", "", tr("patches.txt;;Any files(*.*)"));
     QFile file(buildFile);
     if (!file.open(QIODevice::ReadOnly | QFile::Text)) {
         QMessageBox::warning(this, "Warning", "Cannot open patches.txt file: " + file.errorString());
@@ -325,6 +368,8 @@ void Notepad::save()
         out << text;
         srcFile.close();
     }
+
+    Notepad::changeSetting("lastFile", Notepad::buildFile);
 }
 
 void Notepad::exit()
@@ -367,7 +412,7 @@ void Notepad::about()
 {
    QMessageBox::about(this, tr("About Cemuhook Patches Writer"),
                 tr("Modified Qt's notepad example. "
-                   "Modified to allow to write Cemuhook patches easier."));
+                   "A program that makes writing Cemuhook patches a bit easier by making it more organic and less error-prone."));
 
 }
 

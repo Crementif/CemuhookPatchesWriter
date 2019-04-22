@@ -84,6 +84,8 @@ private slots:
 
     void open();
 
+    void openFile(QString buildFile);
+
     void save();
 
     void exit();
@@ -103,6 +105,8 @@ private slots:
     void compileSourceOnTextChanged();
 
     void setCompiledOutput(QString text);
+
+    void changeSetting(QString settingName, QString settingValue);
 //! [6]
 
     void on_textEdit_textChanged();
@@ -121,7 +125,6 @@ private:
     QString sourceFile;
     bool removeCommentsFromSource = false;
     bool onlyShowFirstPatch = false;
-
     Highlighter *highlighter;
 //! [6]
 };
