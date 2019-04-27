@@ -102,7 +102,7 @@ private slots:
 
     void about();
 
-    void compileSourceOnTextChanged();
+    void compileSourceOnTextChanged(QString sourcePatchesText, bool removeCommentsFromSource);
 
     void setCompiledOutput(QString text);
 
@@ -116,9 +116,6 @@ private slots:
     void on_actionRemove_comments_from_compiled_source_toggled(bool arg1);
 
     void on_actionOnly_show_first_patch_toggled(bool arg1);
-
-    void on_textEdit_selectionChanged();
-
 private:
     Ui::Notepad *ui;
     QString buildFile;
@@ -126,6 +123,7 @@ private:
     bool removeCommentsFromSource = false;
     bool onlyShowFirstPatch = false;
     Highlighter *highlighter;
+    Highlighter *highlighter2;
 //! [6]
 };
 //! [all]

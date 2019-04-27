@@ -93,11 +93,11 @@ Notepad::Notepad(QWidget *parent) :
     ui->textBuildView->setFont(font);
 
     highlighter = new Highlighter(ui->textEdit->document());
-    highlighter = new Highlighter(ui->textBuildView->document());
+    highlighter2 = new Highlighter(ui->textBuildView->document());
 
     // Load settings
     QFile settingsFile(QCoreApplication::applicationDirPath()+"/userdata.ini");
-    if (!settingsFile.open(QIODevice::ReadOnly | QFile::Text)) { // The write mode will create the file for us.
+    if (!settingsFile.open(QIODevice::ReadWrite | QFile::Text)) { // The write mode will create the file for us.
         QMessageBox::warning(this, "Info", "Couldn't create or load userdata.ini: " + settingsFile.errorString());
         return;
     }
@@ -112,7 +112,7 @@ Notepad::Notepad(QWidget *parent) :
 
 void Notepad::changeSetting(QString settingName, QString settingValue) {
     QFile settingsFile(QCoreApplication::applicationDirPath()+"/userdata.ini");
-    if (!settingsFile.open(QIODevice::ReadWrite | QFile::Text)) {
+    if (!settingsFile.open(QIODevice::ReadWrite | QIODevice::Truncate | QFile::Text)) {
         QMessageBox::warning(this, "Info", "Couldn't create or load userdata.ini: " + settingsFile.errorString());
         return;
     }
@@ -120,16 +120,20 @@ void Notepad::changeSetting(QString settingName, QString settingValue) {
     QString textSrc = inSrc.readAll();
     QStringList newSettingsLines;
     QStringList settingsLines = textSrc.split("\n");
-    bool settingChanged = false;
-    foreach (const QString &setting, settingsLines) {
-        if (setting.startsWith(settingName+" = ")) {
-            newSettingsLines += settingName+" = "+settingValue;
-            settingChanged = true;
+    bool settingNotAlreadyFound = true;
+    for (int i=0; i<settingsLines.length(); i++) {
+        if (settingsLines[i].isEmpty()) continue;
+        if (settingsLines[i].startsWith(settingName + " = ")) {
+            newSettingsLines.append(settingName+" = "+settingValue);
+            settingNotAlreadyFound = false;
         }
-        else newSettingsLines += setting;
+        else {
+            newSettingsLines.append(settingsLines[i]);
+        }
     }
-    if (!settingChanged) newSettingsLines += settingName+" = "+settingValue;
+    if (settingNotAlreadyFound) newSettingsLines.append(settingName+" = "+settingValue);
     QTextStream out(&settingsFile);
+    if (newSettingsLines.length() == 1) newSettingsLines[0].append("\n");
     out << newSettingsLines.join("\n");
     settingsFile.close();
 }
@@ -139,9 +143,7 @@ Notepad::~Notepad()
     delete ui;
 }
 
-void Notepad::compileSourceOnTextChanged()
-{
-    QString sourcePatchesText = ui->textEdit->toPlainText();
+void Notepad::compileSourceOnTextChanged(QString sourcePatchesText, bool removeCommentsFromSource) {
     QString compiledPatchesText = "";
     QStringList sourceLines = sourcePatchesText.split("\n");
     QStringList patchLines;
@@ -237,7 +239,7 @@ void Notepad::compileSourceOnTextChanged()
                     if (pureNumber) {
                         QString symbolName = "_const"+QString(hasCemuhookShorthandConstant).remove(1, 1).replace(0, 1, QString(hasCemuhookShorthandConstant)[1].toUpper())+QString::number(value, 'f', 1);
                         patchInterpretedLines.append(QString("%1 = 0x%2").arg(symbolName).arg(interpretedAddrIndex, 7, 16, QChar('0')));
-                        patchInterpretedLines.append(QString("0x%1 = %2(%3)").arg(interpretedAddrIndex, 7, 16, QChar('0')).arg(hasCemuhookShorthandConstant).arg(value, 7, 'f'));
+                        patchInterpretedLines.append(QString("0x%1 = %2 (%3)").arg(interpretedAddrIndex, 7, 16, QChar('0')).arg(hasCemuhookShorthandConstant).arg(value, 7, 'f'));
                         interpretedAddrIndex+=4;
                         patchLines.append("0x%1 = lis "+QString(AddrRegisterHint)+", "+symbolName+"@ha");
                         patchAddresses.append(addrIndex);
@@ -254,7 +256,7 @@ void Notepad::compileSourceOnTextChanged()
                             symbolName+=QString::number(uniqueId);
                         }
                         patchInterpretedLines.append(QString("%1 = 0x%2").arg(symbolName).arg(interpretedAddrIndex, 7, 16, QChar('0')));
-                        patchInterpretedLines.append(QString("0x%1 = %2(%3)").arg(interpretedAddrIndex, 7, 16, QChar('0')).arg(hasCemuhookShorthandConstant).arg(strValue));
+                        patchInterpretedLines.append(QString("0x%1 = %2 (%3)").arg(interpretedAddrIndex, 7, 16, QChar('0')).arg(hasCemuhookShorthandConstant).arg(strValue.trimmed()));
                         interpretedAddrIndex+=4;
                         patchLines.append("0x%1 = lis "+AddrRegisterHint+", "+symbolName+"@ha");
                         patchAddresses.append(addrIndex);
@@ -418,7 +420,7 @@ void Notepad::about()
 
 void Notepad::on_textEdit_textChanged()
 {
-    compileSourceOnTextChanged();
+    compileSourceOnTextChanged(ui->textEdit->toPlainText(), removeCommentsFromSource);
 }
 
 void Notepad::on_actionKeep_window_always_on_top_toggled(bool arg1)
@@ -430,15 +432,10 @@ void Notepad::on_actionKeep_window_always_on_top_toggled(bool arg1)
 void Notepad::on_actionRemove_comments_from_compiled_source_toggled(bool arg1)
 {
     removeCommentsFromSource = arg1;
-    compileSourceOnTextChanged();
+    compileSourceOnTextChanged(ui->textEdit->toPlainText(), removeCommentsFromSource);
 }
 void Notepad::on_actionOnly_show_first_patch_toggled(bool arg1)
 {
     onlyShowFirstPatch = arg1;
-    compileSourceOnTextChanged();
-}
-
-void Notepad::on_textEdit_selectionChanged()
-{
-
+    compileSourceOnTextChanged(ui->textEdit->toPlainText(), removeCommentsFromSource);
 }
